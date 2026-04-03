@@ -74,7 +74,7 @@ const getRecordById = async (req, res, next) => {
 // Update Record
 const updateRecord = async (req, res, next) => {
   try {
-    const record = await Record.findById(req.params.id);
+    const record = await Record.findOne({ _id: req.params.id, isDeleted: false });
 
     if (!record) {
       return res.status(404).json({
@@ -108,7 +108,7 @@ const updateRecord = async (req, res, next) => {
 // Delete Record - owner or admin
 const deleteRecord = async (req, res, next) => {
   try {
-    const record = await Record.findById(req.params.id);
+    const record = await Record.findOne({ _id: req.params.id, isDeleted: false });
 
     if (!record) {
       return res.status(404).json({
@@ -126,11 +126,53 @@ const deleteRecord = async (req, res, next) => {
       });
     }
 
-    await record.deleteOne();
+    record.isDeleted = true;
+    record.deletedAt = new Date();
+    await record.save();
 
     res.json({
       success: true,
       message: 'Record deleted',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+// Get Deleted Records (admin only)
+const getDeletedRecords = async (req, res, next) => {
+  try {
+    const records = await Record.find({ isDeleted: true }).populate('user', 'name email').lean();
+    res.json({
+      success: true,
+      records,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Restore Deleted Record (admin only)
+const restoreDeletedRecord = async (req, res, next) => {
+  try {
+    const record = await Record.findOne({ _id: req.params.id, isDeleted: true });
+
+    if (!record) {
+      return res.status(404).json({
+        success: false,
+        message: 'Deleted record not found',
+      });
+    }
+
+    record.isDeleted = false;
+    record.deletedAt = null;
+    await record.save();
+
+    res.json({
+      success: true,
+      message: 'Record restored',
+      record,
     });
   } catch (err) {
     next(err);
@@ -144,4 +186,6 @@ module.exports = {
   getRecordById,
   updateRecord,
   deleteRecord,
+  getDeletedRecords,
+  restoreDeletedRecord,
 };

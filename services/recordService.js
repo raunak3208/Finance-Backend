@@ -5,6 +5,9 @@ const buildFilter = (user, query) => {
 
   // Admins can see all records, regular users only their own
   let filter = user.role === 'admin' ? {} : { user: user._id };
+  
+  // Exclude softly deleted records generally
+  filter.isDeleted = { $ne: true };
 
   if (type)     filter.type     = type;
 
@@ -69,7 +72,7 @@ const createNewRecord = async (userId, data) => {
 
 // Get single record by ID
 const findRecordById = async (id) => {
-  return await Record.findById(id).populate('user', 'name email').lean();
+  return await Record.findOne({ _id: id, isDeleted: { $ne: true } }).populate('user', 'name email').lean();
 };
 
 // Update a record 
